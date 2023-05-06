@@ -1,5 +1,6 @@
 # Folders
 .vs/
+.vscode/
 .idea/
 out/
 build/
@@ -8,6 +9,7 @@ Libraries/
 MyAssets/
 museumAssets/
 external/
+Logs/
 
 # Prerequisites
 *.d
