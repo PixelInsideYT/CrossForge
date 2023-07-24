@@ -20,6 +20,7 @@
 
 #include "I3DMeshIO.h"
 #include "I2DImageIO.h"
+#include "../Graphics/SceneGraph/ISceneGraphNode.h"
 
 namespace CForge {
 
@@ -46,6 +47,8 @@ namespace CForge {
 
 		void release(void);
 
+		static void load(const std::string Filepath, ISceneGraphNode* RootNode);
+
 	protected:
 		SAssetIO(void);
 		~SAssetIO(void);
@@ -58,6 +61,8 @@ namespace CForge {
 		
 		void storeImage(const std::string Filepath, const T2DImage<uint8_t>* pImage);
 		void loadImage(const std::string Filepath, T2DImage<uint8_t>* pImage);
+
+		void loadScene(const std::string Filepath, ISceneGraphNode* RootNode);
 
 	private:
 		struct ModelIOPlugin {

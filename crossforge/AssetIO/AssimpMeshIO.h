@@ -42,10 +42,15 @@ namespace CForge {
 
 		void load(const std::string Filepath, T3DMesh<float> *pMesh);
 		void store(const std::string Filepath, const T3DMesh<float>* pMesh);
+
+		void load(const std::string Filepath, ISceneGraphNode* RootNode);
+		void loadSceneGraphRec(aiNode* assimpNode, ISceneGraphNode* node);
 	
 	private:
 		void aiSceneTo3DMesh(const aiScene* pScene, T3DMesh<float>* pMesh, std::string Directory);
 		void T3DMeshToAiScene(const T3DMesh<float>* pMesh, aiScene* pScene);
+
+		void AssimpMeshTo3DMesh(const aiScene* pScene, T3DMesh<float>* pMesh, std::string Directory, int i);
 
 		inline Eigen::Vector3f toEigenVec(const aiVector3D Vec)const;
 		inline Eigen::Matrix4f toEigenMat(const aiMatrix4x4 Mat)const;

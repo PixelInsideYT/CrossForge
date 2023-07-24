@@ -6,6 +6,9 @@
 #include "../Core/SLogger.h"
 #include "../Utility/CForgeUtility.h"
 #include "../AssetIO/File.h"
+#include "../Graphics/SceneGraph/ISceneGraphNode.h"
+#include "../Graphics/SceneGraph/SGNTransformation.h"
+#include "../Graphics/SceneGraph/SGNGeometry.h"
 
 
 
@@ -50,6 +53,50 @@ namespace CForge {
 		
 		m_Importer.FreeScene();
 	}//load
+
+	void AssimpMeshIO::load(const std::string Filepath, ISceneGraphNode* RootNode) {
+		const aiScene* pScene = m_Importer.ReadFile(Filepath, aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_LimitBoneWeights | aiProcess_OptimizeGraph | aiProcess_ValidateDataStructure);
+		//const aiScene* pScene = m_Importer.ReadFile(Filepath, aiProcess_Triangulate | aiProcess_ValidateDataStructure);
+
+		if (nullptr == pScene) {
+			std::string ErrorMsg = m_Importer.GetErrorString();
+			throw CForgeExcept("Failed to load model from resource " + Filepath + "\n\t" + ErrorMsg);
+		}
+
+		try {
+			aiSceneTo3DMesh(pScene, RootNode, File::removeFilename(Filepath));
+		}
+		catch (CrossForgeException& e) {
+			SLogger::logException(e);
+		}
+
+		m_Importer.FreeScene();
+	}//load
+
+	void AssimpMeshIO::loadSceneGraphRec(aiNode* assimpNode, ISceneGraphNode* node) {
+		// convert assimp transformation nodes to crossforge transformation nodes
+		SGNTransformation* transformationNode = new SGNTransformation();
+		Eigen::Matrix4f transformation = toEigenMat(assimpNode->mTransformation);
+		// rotation and scale
+		Eigen::Matrix3f rotationScale = transformation.topLeftCorner<3, 3>();
+		float scaleX = rotationScale.col(0).norm();
+		float scaleY = rotationScale.col(1).norm();
+		float scaleZ = rotationScale.col(2).norm();
+		rotationScale.col(0).normalize();
+		rotationScale.col(1).normalize();
+		rotationScale.col(2).normalize();
+		transformationNode->rotation(Eigen::Quaternionf(rotationScale));
+		transformationNode->scale(Eigen::RowVector3f(scaleX, scaleY, scaleZ));
+		// translation
+		Eigen::Vector3f translate = transformation.block<1, 3>(0, 3);
+		transformationNode->translation(translate);		
+
+		// convert assimp geometry nodes to crossforge geometry nodes
+		SGNGeometry* geometryNode = new SGNGeometry();
+		StaticActor mesh;
+		mesh->init()
+		geometryNode->init(transformationNode, mesh);
+	}
 
 	void AssimpMeshIO::store(const std::string Filepath, const T3DMesh<float>* pMesh) {
 		if (Filepath.empty()) throw CForgeExcept("Empty filepath specified!");
@@ -325,6 +372,212 @@ namespace CForge {
 			Bones.clear();
 		}
 	
+		for (auto i : BoneAnimations) pMesh->addSkeletalAnimation(i, false);
+
+	}//aiMeshTo3DMesh
+
+	void AssimpMeshIO::AssimpMeshTo3DMesh(const aiScene* pScene, T3DMesh<float>* pMesh, std::string Directory, int i) {
+		if (nullptr == pMesh) throw NullpointerExcept("pMesh");
+		if (nullptr == pScene) throw NullpointerExcept("pScene");
+
+		pMesh->clear();
+
+		std::vector<Eigen::Vector3f> Positions;
+		std::vector<Eigen::Vector3f> Normals;
+		std::vector<Eigen::Vector3f> Tangents;
+		std::vector<Eigen::Vector3f> UVWs;
+
+		std::vector<T3DMesh<float>::Bone*> Bones;
+		std::vector<T3DMesh<float>::SkeletalAnimation*> SekeltonAnimations;
+
+		uint32_t PositionsOffset = 0;
+		uint32_t NormalsOffset = 0;
+		uint32_t TangentsOffset = 0;
+		uint32_t UVWsOffset = 0;
+
+		uint32_t IndexOffset = 0;
+
+		
+		aiMesh* pM = pScene->mMeshes[i];
+
+		for (uint32_t k = 0; k < pM->mNumVertices; ++k) {
+			// collect vertices
+			Positions.push_back(toEigenVec(pM->mVertices[k]));
+			// collect normals
+			if (pM->mNormals != nullptr) Normals.push_back(toEigenVec(pM->mNormals[k]));
+			// collect tangents
+			if (pM->mTangents != nullptr) Tangents.push_back(toEigenVec(pM->mTangents[k]));
+			// collect texture coordinates
+			if (pM->mTextureCoords[0] != nullptr && pM->GetNumUVChannels() > 0) UVWs.push_back(toEigenVec(pM->mTextureCoords[0][k]));
+		}
+
+		// now we retrieve the faces (create submesh)
+		T3DMesh<float>::Submesh* pSubmesh = new T3DMesh<float>::Submesh();
+		pSubmesh->Material = (int32_t)pM->mMaterialIndex;
+		for (uint32_t k = 0; k < pM->mNumFaces; ++k) {
+			aiFace F = pM->mFaces[k];
+			T3DMesh<float>::Face Face;
+			for (uint32_t j = 0; j < F.mNumIndices && j < 4; j++) {
+				Face.Vertices[j] = PositionsOffset + F.mIndices[j];
+			}//for[face indices]
+
+			if (Face.Vertices[0] != -1 && Face.Vertices[1] != -1 && Face.Vertices[2] != -1)
+				pSubmesh->Faces.push_back(Face);
+		}//for[number of faces]
+		// add submesh to model
+		pMesh->addSubmesh(pSubmesh, false);
+
+		// add bones
+		for (uint32_t k = 0; k < pM->mNumBones; k++) {
+
+			T3DMesh<float>::Bone* pBone = new T3DMesh<float>::Bone();
+			pBone->ID = Bones.size();
+			pBone->OffsetMatrix = toEigenMat(pM->mBones[k]->mOffsetMatrix);
+			pBone->Name = pM->mBones[k]->mName.C_Str();
+
+			for (uint32_t j = 0; j < pM->mBones[k]->mNumWeights; ++j) {
+				pBone->VertexInfluences.push_back(PositionsOffset + pM->mBones[k]->mWeights[j].mVertexId);
+				pBone->VertexWeights.push_back(pM->mBones[k]->mWeights[j].mWeight);
+			}
+
+			Bones.push_back(pBone);
+		}//for[bones]
+
+
+		// set positions, normals, tangents
+		pMesh->vertices(&Positions);
+		if (Normals.size() > 0) pMesh->normals(&Normals);
+		if (Tangents.size() > 0) pMesh->tangents(&Tangents);
+		if (UVWs.size() > 0) pMesh->textureCoordinates(&UVWs);
+
+		//add materials
+		aiMaterial* pMat = pScene->mMaterials[pM->mMaterialIndex];
+		aiString Filepath;
+
+		T3DMesh<float>::Material Mat;
+
+
+		if (pMat->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
+			pMat->GetTexture(aiTextureType_DIFFUSE, 0, &Filepath);
+			if (File::exists(Filepath.C_Str())) Mat.TexAlbedo = std::string(Filepath.C_Str());
+			else Mat.TexAlbedo = File::absolute(Directory + Filepath.C_Str());
+		}
+		else if (pMat->GetTextureCount(aiTextureType_AMBIENT) > 0) {
+			pMat->GetTexture(aiTextureType_AMBIENT, 0, &Filepath);
+			if (File::exists(Filepath.C_Str())) Mat.TexAlbedo = std::string(Filepath.C_Str());
+			else Mat.TexAlbedo = File::absolute(Directory + Filepath.C_Str());
+		}
+
+		if (pMat->GetTextureCount(aiTextureType_NORMALS) > 0) {
+			pMat->GetTexture(aiTextureType_NORMALS, 0, &Filepath);
+			if (File::exists(Filepath.C_Str())) Mat.TexNormal = std::string(Filepath.C_Str());
+			else Mat.TexNormal = File::absolute(Directory + Filepath.C_Str());
+		}
+
+		if (pMat->GetTextureCount(aiTextureType_HEIGHT) > 0) {
+			pMat->GetTexture(aiTextureType_HEIGHT, 0, &Filepath);
+			if (File::exists(Filepath.C_Str())) Mat.TexDepth = std::string(Filepath.C_Str());
+			else Mat.TexDepth = File::absolute(Directory + Filepath.C_Str());
+		}
+
+		ai_real Buffer[4];
+		pMat->Get(AI_MATKEY_COLOR_DIFFUSE, (ai_real*)Buffer, nullptr);
+		Mat.Color = Eigen::Vector4f(Buffer[0], Buffer[1], Buffer[2], Buffer[3]);
+
+		pMesh->addMaterial(&Mat, true);
+		//for[all materials]
+
+		// join identical bones (if names are identical)
+		for (auto i : Bones) {
+			if (nullptr == i) continue;
+			for (uint32_t k = i->ID + 1; k < Bones.size(); ++k) {
+				if (Bones[k] == nullptr) continue;
+				if (i->Name.compare(Bones[k]->Name) == 0) {
+					// copy vertx influces
+					for (auto l : Bones[k]->VertexInfluences) i->VertexInfluences.push_back(l);
+					for (auto l : Bones[k]->VertexWeights) i->VertexWeights.push_back(l);
+					delete Bones[k];
+					Bones[k] = nullptr;
+				}
+			}//for[following bones]
+		}//for[all bones]
+
+		std::vector<T3DMesh<float>::Bone*> Bones2;
+		for (auto i : Bones) {
+			if (i != nullptr) Bones2.push_back(i);
+		}
+		Bones = Bones2;
+
+		for (uint32_t i = 0; i < Bones.size(); ++i) Bones[i]->ID = i;
+
+		// skeleton
+		aiNode* pRoot = pScene->mRootNode;
+		retrieveBoneHierarchy(pRoot, &Bones);
+
+		// find root bone (the one without parent)
+		T3DMesh<float>::Bone* pRootBone = nullptr;
+		for (auto i : Bones) {
+			if (i->pParent == nullptr) pRootBone = i;
+		}//for[all bones]
+
+
+		std::vector<T3DMesh<float>::SkeletalAnimation*> BoneAnimations;
+
+		// retrieve animation data
+		/*for (uint32_t i = 0; i < pScene->mNumAnimations; ++i) {
+			aiAnimation* pAnim = pScene->mAnimations[i];
+
+			// create new animation
+			T3DMesh<float>::SkeletalAnimation* pSkelAnim = new T3DMesh<float>::SkeletalAnimation();
+			BoneAnimations.push_back(pSkelAnim);
+
+			pSkelAnim->Duration = pAnim->mDuration;
+			pSkelAnim->Speed = pAnim->mTicksPerSecond;
+			pSkelAnim->Name = pAnim->mName.C_Str();
+
+			// create keyframe for every bone
+			for (uint32_t k = 0; k < std::max((uint32_t)Bones.size(), pAnim->mNumChannels); k++) {
+				pSkelAnim->Keyframes.push_back(new T3DMesh<float>::BoneKeyframes());
+				pSkelAnim->Keyframes[k]->ID = k;
+			}//for[all bones]
+
+			for (uint32_t k = 0; k < pAnim->mNumChannels; ++k) {
+				aiNodeAnim* pNodeAnim = pAnim->mChannels[k];
+
+				T3DMesh<float>::Bone* pB = getBoneFromName(pNodeAnim->mNodeName.C_Str(), &Bones);
+
+
+				int32_t KeyID = (nullptr == pB) ? k : pB->ID;
+
+				pSkelAnim->Keyframes[KeyID]->BoneID = (nullptr == pB) ? -1 : pB->ID;
+				pSkelAnim->Keyframes[KeyID]->BoneName = pNodeAnim->mNodeName.C_Str();
+
+				T3DMesh<float>::BoneKeyframes* pKeys = (pB == nullptr) ? pSkelAnim->Keyframes[k] : pSkelAnim->Keyframes[pB->ID];
+
+				for (uint32_t l = 0; l < pNodeAnim->mNumPositionKeys; l++) {
+					pKeys->Positions.push_back(toEigenVec(pNodeAnim->mPositionKeys[l].mValue));
+					pKeys->Timestamps.push_back(pNodeAnim->mPositionKeys[l].mTime);
+				}//for[positions]
+
+				for (uint32_t l = 0; l < pNodeAnim->mNumRotationKeys; l++) {
+					pKeys->Rotations.push_back(toEigenQuat(pNodeAnim->mRotationKeys[l].mValue));
+				}//for[rotations]
+
+				for (uint32_t l = 0; l < pNodeAnim->mNumScalingKeys; l++) {
+					pKeys->Scalings.push_back(toEigenVec(pNodeAnim->mScalingKeys[l].mValue));
+				}
+
+			}//for[channels]
+
+		}//for[all animations]*/
+
+		if (Bones.size() > 0) {
+			// set skeleton
+			// the mesh structure can have the allocated memory
+			pMesh->bones(&Bones, false);
+			Bones.clear();
+		}
+
 		for (auto i : BoneAnimations) pMesh->addSkeletalAnimation(i, false);
 
 	}//aiMeshTo3DMesh
