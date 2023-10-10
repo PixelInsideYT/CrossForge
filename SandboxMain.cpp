@@ -23,22 +23,24 @@
 #include <Examples/ExampleShapesAndMaterials.hpp>
 #include <Examples/ExampleTextRendering.hpp>
 #include <Examples/ExampleLighting.hpp>
+#include <Examples/ExampleRecast.hpp>
 
 using namespace CForge;
 using namespace Eigen;
 
 //#define ActiveScene ExampleSceneBase
 
-//#define ActiveScene ExampleMinimumGraphicsSetup
-//#define ActiveScene ExampleSkybox
-//#define ActiveScene ExampleTextRendering
+// #define ActiveScene ExampleMinimumGraphicsSetup
+// #define ActiveScene ExampleSkybox
+// #define ActiveScene ExampleTextRendering
 //#define ActiveScene ExampleShapesAndMaterials
-#define ActiveScene ExampleLighting
-//#define ActiveScene ExampleSceneGraph
+// #define ActiveScene ExampleLighting
+// #define ActiveScene ExampleSceneGraph
 //#define ActiveScene ExampleSkeletalAnimation
 //#define ActiveScene ExampleMorphTargetAnimation
 //#define ActiveScene ExampleMultiViewport
 //#define ActiveScene ExampleSocket
+#define ActiveScene ExampleRecast
 
 
 ActiveScene* pScene = nullptr;
