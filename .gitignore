@@ -75,3 +75,9 @@ CMakeSettings.json
 
 *.exe
 *.zip
+
+#Autobackups
+*.blend1
+
+#vscode
+*code-workspace
