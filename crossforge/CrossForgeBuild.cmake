@@ -112,6 +112,7 @@ else()
 	FIND_PACKAGE(freetype REQUIRED)		# Library to load and process vector based fonts
 	FIND_PACKAGE(libigl CONFIG REQUIRED)	# mesh processing library
 	FIND_PACKAGE(WebP CONFIG REQUIRED)	# WebP to import/export webp
+	# FIND_PACKAGE(unofficial-recast CONFIG REQUIRED)	
 
 endif()
 
@@ -241,6 +242,15 @@ add_library(crossforge SHARED
 
 	# Utility
 	crossforge/Utility/CForgeUtility.cpp
+
+	# Detour
+	crossforge/Detour/DetourAlloc.cpp
+	crossforge/Detour/DetourAssert.cpp
+	crossforge/Detour/DetourCommon.cpp
+	crossforge/Detour/DetourNavMesh.cpp
+	crossforge/Detour/DetourNavMeshBuilder.cpp
+	crossforge/Detour/DetourNavMeshQuery.cpp
+	crossforge/Detour/DetourNode.cpp
 
  )
 
