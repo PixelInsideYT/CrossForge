@@ -21,6 +21,12 @@
 
 #include <crossforge/MeshProcessing/PrimitiveShapeFactory.h>
 #include "ExampleSceneBase.hpp"
+#include "Examples/edt/AIComponent.h"
+#include "Examples/edt/SteeringComponent.h"
+#include "Examples/edt/AiSystem.h"
+#include "Examples/edt/PositionComponent.h"
+#include "Examples/edt/GeometryComponent.h"
+#include "Examples/levelloading/LevelLoader.h"
 #include <flecs.h>
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
@@ -28,6 +34,8 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include "DialogGraph.hpp"
+#include <fstream>
+#include <json/json.h>
 
 namespace CForge {
     class EDT : public ExampleSceneBase {
@@ -72,70 +80,13 @@ namespace CForge {
             m_GroundTransformSGN.init(&m_RootSGN);
             m_GroundSGN.init(&m_GroundTransformSGN, &m_Ground);
 
-            // load the tree models
-            SAssetIO::load("Assets/ExampleScenes/Trees/LowPolyTree_01.gltf", &M);
-            setMeshShader(&M, 0.8f, 0.04f);
-            M.computePerVertexNormals();
-            scaleAndOffsetModel(&M, 0.5f);
-            M.computeAxisAlignedBoundingBox();
-            m_Trees[0].init(&M);
-            M.clear();
-
-            SAssetIO::load("Assets/ExampleScenes/Trees/LowPolyTree_02.gltf", &M);
-            setMeshShader(&M, 0.8f, 0.04f);
-            M.computePerVertexNormals();
-            M.computeAxisAlignedBoundingBox();
-            m_Trees[1].init(&M);
-            M.clear();
-
-            SAssetIO::load("Assets/ExampleScenes/Trees/LowPolyTree_03.gltf", &M);
-            setMeshShader(&M, 0.8f, 0.04f);
-            M.computePerVertexNormals();
-            scaleAndOffsetModel(&M, 5.0f, Vector3f(0.0f, 0.25f, 0.0f));
-            M.computeAxisAlignedBoundingBox();
-            m_Trees[2].init(&M);
-            M.clear();
-
-            // sceen graph node that holds our forest
-            m_TreeGroupSGN.init(&m_RootSGN);
-
-            float Area = 500.0f;    // square area [-Area, Area] on the xz-plane, where trees are planted
-            float TreeCount = 0;    // number of trees to create
-
-            for (uint32_t i = 0; i < TreeCount; ++i) {
-                // create the scene graph nodes
-                SGNGeometry *pGeomSGN = nullptr;
-                SGNTransformation *pTransformSGN = nullptr;
-
-                // initialize position and scaling of the tree
-                pTransformSGN = new SGNTransformation();
-                pTransformSGN->init(&m_TreeGroupSGN);
-
-                float TreeScale = CForgeMath::randRange(0.1f, 3.0f);
-
-                Vector3f TreePos = Vector3f::Zero();
-                TreePos.x() = CForgeMath::randRange(-Area, Area);
-                TreePos.z() = CForgeMath::randRange(-Area, Area);
-
-                pTransformSGN->translation(TreePos);
-                pTransformSGN->scale(Vector3f(TreeScale, TreeScale, TreeScale));
-
-                // initialize geometry
-                // choose one of the trees randomly
-                pGeomSGN = new SGNGeometry();
-                uint8_t TreeType = CForgeMath::rand() % 3;
-                pGeomSGN->init(pTransformSGN, &m_Trees[TreeType]);
-
-                m_TreeTransformSGNs.push_back(pTransformSGN);
-                m_TreeSGNs.push_back(pGeomSGN);
-
-            }//for[TreeCount]
+            // load level
+            LevelLoader levelLoader;
+            levelLoader.loadLevel("Assets/Scene/scene.json", &m_RootSGN, &world);
 
             // change sun settings to cover this large area
             m_Sun.position(Vector3f(100.0f, 1000.0f, 500.0f));
             m_Sun.initShadowCasting(2048 * 2, 2048 * 2, Vector2i(1000, 1000), 1.0f, 5000.0f);
-
-            m_Fly = false;
 
             // create help text
             LineOfText *pKeybindings = new LineOfText();
@@ -145,22 +96,7 @@ namespace CForge {
             pKeybindings->color(0.0f, 0.0f, 0.0f, 1.0f);
             m_DrawHelpTexts = true;
 
-            myTreeEntity = world.entity();
-            myTreeEntity.add<SGNTransformation>();
-            auto transformation = myTreeEntity.get_mut<SGNTransformation>();
-            transformation->init(&m_RootSGN);
-            transformation->rotationDelta(
-                    (Quaternionf) AngleAxisf(CForgeMath::degToRad(-10 / 60.0f), Vector3f::UnitY()));
-            SGNGeometry *entityGeom = new SGNGeometry();
-            entityGeom->init(transformation, &m_Trees[0]);
-
-            move_sys = world.system<SGNTransformation>()
-                    .iter([](flecs::iter it, SGNTransformation *p) {
-                        for (int i: it) {
-                            p[i].update(it.delta_time());
-                        }
-                    });
-
+            SteeringSystem::addSteeringSystem(world);
 
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();
@@ -183,7 +119,7 @@ namespace CForge {
                 std::cout << "Failed to init imGUI for OpenGL" << std::endl;
             }
 
-            dialog.init("../../../Examples/conversation.json");
+            dialog.init("Assets/Dialogs/conversation.json");
 
         }//initialize
 
@@ -195,20 +131,10 @@ namespace CForge {
         }//clear
 
         void mainLoop(void) override {
-            countdown--;
-            if (countdown < 0 && myTreeEntity.is_alive()) {
-                myTreeEntity.destruct();
-            }
             m_RenderWin.update();
 
             toggleCursor();
             defaultCameraUpdate(&m_Cam, m_RenderWin.keyboard(), m_RenderWin.mouse(), 0.1f * 60.0f / m_FPS, 0.5f, 2.0f);
-            // make sure to always walk on the ground if not flying
-            if (!m_Fly) {
-                Vector3f CamPos = m_Cam.position();
-                CamPos.y() = 1.0f;
-                m_Cam.position(CamPos);
-            }
 
             m_SkyboxSG.update(60.0f / m_FPS);
             m_SG.update(60.0f / m_FPS);
@@ -216,10 +142,12 @@ namespace CForge {
             m_RenderDev.activePass(RenderDevice::RENDERPASS_SHADOW, &m_Sun);
             m_RenderDev.activeCamera(const_cast<VirtualCamera *>(m_Sun.camera()));
             m_SG.render(&m_RenderDev);
+            renderEntities(&m_RenderDev);
 
             m_RenderDev.activePass(RenderDevice::RENDERPASS_GEOMETRY);
             m_RenderDev.activeCamera(&m_Cam);
             m_SG.render(&m_RenderDev);
+            renderEntities(&m_RenderDev);
 
             m_RenderDev.activePass(RenderDevice::RENDERPASS_LIGHTING);
 
@@ -280,40 +208,34 @@ namespace CForge {
             m_RenderWin.swapBuffers();
 
             updateFPS();
-            move_sys.run();
+            world.progress(60.0f / m_FPS);
             // change between flying and walking mode
-            if (m_RenderWin.keyboard()->keyPressed(Keyboard::KEY_F, true)) m_Fly = !m_Fly;
-
             defaultKeyboardUpdate(m_RenderWin.keyboard());
 
         }//run
 
     protected:
 
-        void scaleAndOffsetModel(T3DMesh<float> *pModel, float Factor, Vector3f Offset = Vector3f::Zero()) {
-            Matrix3f Sc = Matrix3f::Identity();
-            Sc(0, 0) = Factor;
-            Sc(1, 1) = Factor;
-            Sc(2, 2) = Factor;
-            for (uint32_t i = 0; i < pModel->vertexCount(); ++i) pModel->vertex(i) = Sc * pModel->vertex(i) - Offset;
-        }//scaleModel
+        void renderEntities(RenderDevice *pRDev) {
+            world.query<PositionComponent, GeometryComponent>()
+                    .iter([pRDev](flecs::iter it, PositionComponent *p, GeometryComponent *geo) {
+                        for (int i: it) {
+                            pRDev->requestRendering(geo[i].actor, p[i].m_Rotation, p[i].m_Translation, p[i].m_Scale);
+                        }
+                    });
+        }
+
         flecs::world world;
-        flecs::entity myTreeEntity;
-        float countdown = 100 * 60;
-        flecs::system move_sys;
         SGNTransformation m_RootSGN;
 
         StaticActor m_Ground;
         SGNGeometry m_GroundSGN;
         SGNTransformation m_GroundTransformSGN;
 
-        StaticActor m_Trees[3];
         std::vector<SGNTransformation *> m_TreeTransformSGNs;
         std::vector<SGNGeometry *> m_TreeSGNs;
 
         SGNTransformation m_TreeGroupSGN;
-
-        bool m_Fly;
 
         Dialoggraph dialog;
         vector<int> conversationProgress;

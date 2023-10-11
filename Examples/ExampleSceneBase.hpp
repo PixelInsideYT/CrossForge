@@ -45,6 +45,8 @@
 #else
 
 #include <glad/glad.h>
+#include <thread>
+
 #include <GLFW/glfw3.h>
 
 #endif
@@ -284,7 +286,6 @@ namespace CForge {
             if (nullptr == pMouse) throw NullpointerExcept("pMouse");
 
             if (gamestate == GAMEPLAY) {
-
                 float S = 1.0f;
                 if (pKeyboard->keyPressed(Keyboard::KEY_LEFT_SHIFT)) S = SpeedScale;
 
@@ -340,7 +341,6 @@ namespace CForge {
             if (m_RenderWin.keyboard()->keyPressed(Keyboard::KEY_C, true)) {
                 gamestate = gamestate == GAMEPLAY ? DIALOG : GAMEPLAY;
             }
-
             if (pKeyboard->keyPressed(Keyboard::KEY_ESCAPE)) {
 #ifdef __EMSCRIPTEN__
                 emscripten_cancel_main_loop();
@@ -351,7 +351,8 @@ namespace CForge {
         }//defaultKeyboardUpdate
 
         void toggleCursor() {
-            glfwSetInputMode(glfwGetCurrentContext(), GLFW_CURSOR, gamestate == DIALOG ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+            glfwSetInputMode(glfwGetCurrentContext(), GLFW_CURSOR,
+                             gamestate == DIALOG ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
         }
 
         void takeScreenshot(std::string Filepath) {
@@ -439,9 +440,9 @@ namespace CForge {
 
         std::vector<LineOfText *> m_HelpTexts;
         bool m_DrawHelpTexts;
-
         enum GameState {
-            GAMEPLAY, DIALOG            // DIALOG: Maus nicht disabled, sodass mit imgui interagiert werden kann, Kamera starr, Spieler reagiert nicht auf Tasteneingaben wie WASD
+            GAMEPLAY,
+            DIALOG            // DIALOG: Maus nicht disabled, sodass mit imgui interagiert werden kann, Kamera starr, Spieler reagiert nicht auf Tasteneingaben wie WASD
         };                              // GAMEPLAY: Cursor gefangen, Kamera beweglich, Spieler kann sich bewegen
         GameState gamestate = GAMEPLAY;
     };//ExampleMinimumGraphicsSetup

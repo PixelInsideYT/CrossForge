@@ -71,9 +71,10 @@ if(USE_OPENCV)
 	add_compile_definitions(USE_OPENCV)
 endif(USE_OPENCV)
 
-add_executable(CForgeSandbox 
+add_executable(CForgeSandbox
 	SandboxMain.cpp
-)
+
+        Examples/edt/AIComponent.cpp Examples/edt/AIComponent.h Examples/edt/AiSystem.h  Examples/edt/SteeringComponent.h Examples/edt/SteeringSystem.cpp Examples/edt/SteeringSystem.h Examples/levelloading/LevelLoader.h)
 
 if(EMSCRIPTEN)
 	target_link_Libraries(CForgeSandbox
@@ -91,8 +92,7 @@ elseif(WIN32)
 	PRIVATE tinyxml2::tinyxml2
 	PRIVATE imgui::imgui
 	PRIVATE flecs::flecs
-	jsoncpp_lib jsoncpp_object JsonCpp::JsonCpp
-	#${JSONCPP_LINK_LIBRARIES}
+	PRIVATE JsonCpp::JsonCpp
 	${FREETYPE_LIBRARIES}
 
 	)
@@ -104,6 +104,7 @@ elseif(__arm__)
 		PRIVATE glad::glad
 		PRIVATE tinyxml2::tinyxml2
 		PRIVATE imgui::imgui
+		PRIVATE JsonCpp::JsonCpp
 #		PRIVATE assimp
 		PRIVATE gpiod
 		PRIVATE dl	
@@ -117,7 +118,8 @@ elseif(UNIX)
 		PRIVATE imgui::imgui
 #		PRIVATE assimp
 		PRIVATE flecs::flecs
-		PRIVATE dl	
+		PRIVATE JsonCpp::JsonCpp
+		PRIVATE dl
 		)
 endif()
 
