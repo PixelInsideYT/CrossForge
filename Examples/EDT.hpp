@@ -232,7 +232,17 @@ namespace CForge {
             ImGui_ImplGlfw_NewFrame();
 
             bool test = true;
-            ImVec2 size = {0, 0};
+            ImVec2 size = {m_RenderWin.width()/3.0f, m_RenderWin.height()/5.0f};
+            ImVec2 pos = {m_RenderWin.width()/2.0f, m_RenderWin.height()*4.0f/5.0f};
+            ImVec2 pivot = { 0.5, 0.5 };
+            ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize;
+            ImGuiStyle& style = ImGui::GetStyle();
+            style.FrameRounding = 2.0f;
+            style.WindowRounding = 3.0f;
+            style.WindowPadding = { 4.0f, 10.0f };
+            style.ItemSpacing = { 5.0f, 7.0f };
+            ImGui::StyleColorsLight();
+            style.Colors[ImGuiCol_WindowBg] = {255.0f, 255.0f, 255.0f, 0.8f};
 
             if (gamestate == DIALOG) {
                 Dialoggraph currentDialog = dialog;
@@ -244,9 +254,15 @@ namespace CForge {
                 }
                 ImGui::NewFrame();
                 ImGui::SetNextWindowSize(size);
-                ImGui::Begin("test", &test, ImGuiWindowFlags_NoTitleBar);
+                ImGui::SetNextWindowPos(pos, 0, pivot);
+                ImGui::Begin("test", &test, windowFlags);
+                float win_width = ImGui::GetWindowSize().x;
+                float text_width = ImGui::CalcTextSize(currentDialog.text.c_str()).x;
+                ImGui::SetCursorPosX((win_width - text_width) * 0.5f);
                 ImGui::Text(currentDialog.text.c_str());
                 for (int i = 0; i < currentDialog.answers.size(); i++) {
+                    float button_width = ImGui::CalcTextSize(currentDialog.answers[i].text.c_str()).x;
+                    ImGui::SetCursorPosX((win_width - button_width) * 0.5f);
                     if (ImGui::Button(currentDialog.answers[i].text.c_str())) {
                         conversationProgress.push_back(i);
                     }
