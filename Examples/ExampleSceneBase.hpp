@@ -339,7 +339,7 @@ namespace CForge {
             }
 
             if (m_RenderWin.keyboard()->keyPressed(Keyboard::KEY_C, true)) {
-                gamestate = gamestate == GAMEPLAY ? DIALOG : GAMEPLAY;
+                //gamestate = gamestate == GAMEPLAY ? DIALOG : GAMEPLAY;
             }
             if (pKeyboard->keyPressed(Keyboard::KEY_ESCAPE)) {
 #ifdef __EMSCRIPTEN__

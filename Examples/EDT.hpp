@@ -34,6 +34,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include "DialogGraph.hpp"
+#include "Dialog.hpp"
 #include <fstream>
 #include <json/json.h>
 
@@ -98,28 +99,8 @@ namespace CForge {
 
             SteeringSystem::addSteeringSystem(world);
 
-            IMGUI_CHECKVERSION();
-            ImGui::CreateContext();
-
-            ImGuiIO &io = ImGui::GetIO();
-            (void) io;
-
-            io.Fonts->AddFontFromFileTTF(
-                    "Assets/Fonts/NotoSerif/NotoSerif-Regular.ttf",
-                    24.0f,
-                    NULL,
-                    NULL
-            );
-
-            // setup platform/renderer bindings
-            if (!ImGui_ImplGlfw_InitForOpenGL(glfwGetCurrentContext(), true)) {
-                std::cout << "Failed to init imGUI for window" << std::endl;
-            }
-            if (!ImGui_ImplOpenGL3_Init()) {
-                std::cout << "Failed to init imGUI for OpenGL" << std::endl;
-            }
-
-            dialog.init("Assets/Dialogs/conversation.json");
+            dialog.init();
+            isClose = false;
 
         }//initialize
 
@@ -129,6 +110,31 @@ namespace CForge {
 
             ExampleSceneBase::clear();
         }//clear
+
+        float getDistanceXZ(Vector3f a, Vector3f b) {
+            Vector3f diff;
+            diff[0] = a[0] - b[0];
+            diff[1] = 0;
+            diff[2] = a[2] - b[2];
+
+            float dist = sqrt(diff[0] * diff[0] + diff[2] * diff[2]);
+            return dist;
+        }
+
+        float getAngle(Vector3f a, Vector3f b) {
+            Vector3f robotDir;
+            robotDir[0] = a[0] - b[0];
+            robotDir[1] = a[1] - b[1];
+            robotDir[2] = a[2] - b[2];
+
+            float dot = robotDir[0] * m_Cam.dir()[0] + robotDir[1] * m_Cam.dir()[1] + robotDir[2] * m_Cam.dir()[2];
+            float lenR = sqrt(robotDir[0] * robotDir[0] + robotDir[1] * robotDir[1] + robotDir[2] * robotDir[2]);
+            float lenC = sqrt(m_Cam.dir()[0] * m_Cam.dir()[0] + m_Cam.dir()[1] * m_Cam.dir()[1] + m_Cam.dir()[2] * m_Cam.dir()[2]);
+
+            float angle = acos(dot / (lenR * lenC));
+
+            return angle * 180 / 3.14;
+        }
 
         void mainLoop(void) override {
             m_RenderWin.update();
@@ -156,53 +162,29 @@ namespace CForge {
             if (m_FPSLabelActive) m_FPSLabel.render(&m_RenderDev);
             if (m_DrawHelpTexts) drawHelpTexts();
 
-            ImGui_ImplOpenGL3_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
+            flecs::filter<PositionComponent, AIComponent> f = world.filter<PositionComponent, AIComponent>();
+            f.each([&](const PositionComponent& t, AIComponent a) {
+                float d = getDistanceXZ(t.m_Translation, m_Cam.position());
+                float diffY = t.m_Translation[1] - m_Cam.position()[1];
+                float phi = getAngle(t.m_Translation, m_Cam.position());
 
-            bool test = true;
-            ImVec2 size = {m_RenderWin.width()/3.0f, m_RenderWin.height()/5.0f};
-            ImVec2 pos = {m_RenderWin.width()/2.0f, m_RenderWin.height()*4.0f/5.0f};
-            ImVec2 pivot = { 0.5, 0.5 };
-            ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize;
-            ImGuiStyle& style = ImGui::GetStyle();
-            style.FrameRounding = 2.0f;
-            style.WindowRounding = 3.0f;
-            style.WindowPadding = { 4.0f, 10.0f };
-            style.ItemSpacing = { 5.0f, 7.0f };
-            ImGui::StyleColorsLight();
-            style.Colors[ImGuiCol_WindowBg] = {255.0f, 255.0f, 255.0f, 0.8f};
+                //printf("%f \n", phi);
+
+                if (d < 10 && diffY < 1 && phi < 30) {      // constraints for triggering dialog
+                    isClose = true;
+                }
+                else isClose = false;
+                });
+
+            if (m_RenderWin.keyboard()->keyPressed(Keyboard::KEY_E, true) && isClose) {
+                gamestate = gamestate == GAMEPLAY ? DIALOG : GAMEPLAY;
+            }
 
             if (gamestate == DIALOG) {
-                Dialoggraph currentDialog = dialog;
-                for (int selected: conversationProgress) {
-                    currentDialog = currentDialog.answers[selected];
-                    if (currentDialog.playerSpeaking && !currentDialog.answers.empty()) {
-                         currentDialog = currentDialog.answers[0];
-                    }
-                }
-                ImGui::NewFrame();
-                ImGui::SetNextWindowSize(size);
-                ImGui::SetNextWindowPos(pos, 0, pivot);
-                ImGui::Begin("test", &test, windowFlags);
-                float win_width = ImGui::GetWindowSize().x;
-                float text_width = ImGui::CalcTextSize(currentDialog.text.c_str()).x;
-                ImGui::SetCursorPosX((win_width - text_width) * 0.5f);
-                ImGui::Text(currentDialog.text.c_str());
-                for (int i = 0; i < currentDialog.answers.size(); i++) {
-                    float button_width = ImGui::CalcTextSize(currentDialog.answers[i].text.c_str()).x;
-                    ImGui::SetCursorPosX((win_width - button_width) * 0.5f);
-                    if (ImGui::Button(currentDialog.answers[i].text.c_str())) {
-                        conversationProgress.push_back(i);
-                    }
-                }
-                if (currentDialog.answers.empty()) {
-                    gamestate = GAMEPLAY;
-                    conversationProgress.clear();
-                }
-                ImGui::End();
-                ImGui::EndFrame();
-                ImGui::Render();
-                ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+                bool hasFinished = false;                
+                dialog.setWindowStyle(m_RenderWin.width(), m_RenderWin.height());
+                hasFinished = dialog.showDialog("Assets/Dialogs/conversation.json");
+                if(hasFinished) gamestate = GAMEPLAY;
             }
 
             m_RenderWin.swapBuffers();
@@ -237,8 +219,8 @@ namespace CForge {
 
         SGNTransformation m_TreeGroupSGN;
 
-        Dialoggraph dialog;
-        vector<int> conversationProgress;
+        Dialog dialog;
+        bool isClose;
     };//EDT
 
 }//name space
