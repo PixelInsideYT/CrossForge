@@ -102,6 +102,11 @@ namespace CForge {
             dialog.init();
             isClose = false;
 
+            Font* font = CForgeUtility::defaultFont(CForgeUtility::FONTTYPE_SANSERIF, 20);
+            text.init(font, "E: Talk");
+            Vector2f Position = Vector2f(5.0f, 5.0f);
+            text.position(m_RenderWin.width() / 2 + 150.0, m_RenderWin.height() / 2 + 20);
+
         }//initialize
 
         void clear(void) override {
@@ -122,6 +127,7 @@ namespace CForge {
         }
 
         float getAngle(Vector3f a, Vector3f b) {
+            a[1] = a[1] + 3;
             Vector3f robotDir;
             robotDir[0] = a[0] - b[0];
             robotDir[1] = a[1] - b[1];
@@ -162,6 +168,7 @@ namespace CForge {
             if (m_FPSLabelActive) m_FPSLabel.render(&m_RenderDev);
             if (m_DrawHelpTexts) drawHelpTexts();
 
+            // talk to robot when close
             flecs::filter<PositionComponent, AIComponent> f = world.filter<PositionComponent, AIComponent>();
             f.each([&](const PositionComponent& t, AIComponent a) {
                 float d = getDistanceXZ(t.m_Translation, m_Cam.position());
@@ -172,6 +179,13 @@ namespace CForge {
 
                 if (d < 10 && diffY < 1 && phi < 30) {      // constraints for triggering dialog
                     isClose = true;
+
+                    if (gamestate == GAMEPLAY) {
+                        
+                        
+                        text.render(&m_RenderDev);
+                    }
+                    
                 }
                 else isClose = false;
                 });
@@ -221,6 +235,7 @@ namespace CForge {
 
         Dialog dialog;
         bool isClose;
+        LineOfText text;
     };//EDT
 
 }//name space
