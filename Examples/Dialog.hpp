@@ -25,6 +25,7 @@ namespace CForge {
         vector<int> conversationProgress;
         Dialoggraph currentDialog;
         string currentFile;
+        DialogMap map;
 
         void init() {
             IMGUI_CHECKVERSION();
@@ -73,7 +74,7 @@ namespace CForge {
 
             if (filepath != currentFile)
             {
-                dialogGraph.init(filepath);
+                dialogGraph.init(filepath, map);
                 currentFile = filepath;
             }
             

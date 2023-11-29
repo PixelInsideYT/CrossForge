@@ -99,14 +99,14 @@ namespace CForge {
 
             SteeringSystem::addSteeringSystem(world);
 
-            dialog.init();
-            isClose = false;
-
             Font* font = CForgeUtility::defaultFont(CForgeUtility::FONTTYPE_SANSERIF, 20);
             text.init(font, "E: Talk");
             Vector2f Position = Vector2f(5.0f, 5.0f);
             text.position(m_RenderWin.width() / 2 + 150.0, m_RenderWin.height() / 2 + 20);
 
+            dialog.init();
+            isClose = false;
+            
         }//initialize
 
         void clear(void) override {
@@ -181,11 +181,8 @@ namespace CForge {
                     isClose = true;
 
                     if (gamestate == GAMEPLAY) {
-                        
-                        
                         text.render(&m_RenderDev);
-                    }
-                    
+                    }                    
                 }
                 else isClose = false;
                 });
@@ -197,7 +194,7 @@ namespace CForge {
             if (gamestate == DIALOG) {
                 bool hasFinished = false;                
                 dialog.setWindowStyle(m_RenderWin.width(), m_RenderWin.height());
-                hasFinished = dialog.showDialog("Assets/Dialogs/conversation.json");
+                hasFinished = dialog.showDialog("Assets/Dialogs/whatPlant.json");
                 if(hasFinished) gamestate = GAMEPLAY;
             }
 

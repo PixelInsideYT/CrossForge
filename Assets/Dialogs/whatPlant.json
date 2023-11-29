@@ -1,0 +1,22 @@
+{
+    "text": "Hello, how can I help you?",
+    "playerSpeaking": false,
+    "answers": [
+        {
+            "text": "What kind of plant is this?",
+            "playerSpeaking": true,
+            "answers": [
+                {
+                    "text": "This is a <plant>.",
+                    "playerSpeaking": false,
+                    "answers": [
+                        {
+                            "text": "Thanks. Bye.",
+                            "playerSpeaking": true
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
