@@ -21,11 +21,7 @@
 
 #include <crossforge/MeshProcessing/PrimitiveShapeFactory.h>
 #include "ExampleSceneBase.hpp"
-#include "Examples/edt/AIComponent.h"
-#include "Examples/edt/SteeringComponent.h"
-#include "Examples/edt/AiSystem.h"
-#include "Examples/edt/PositionComponent.h"
-#include "Examples/edt/GeometryComponent.h"
+#include "Examples/edt/PathSystem.h"
 #include "Examples/levelloading/LevelLoader.h"
 #include <flecs.h>
 #include <imgui.h>
@@ -35,12 +31,28 @@
 #include <iostream>
 #include "DialogGraph.hpp"
 #include "Dialog.hpp"
+#include "Examples/edt/PhysicsSystem.h"
 #include <fstream>
 #include <json/json.h>
+#include <tinyfsm.hpp>
+#include <BulletCollision/CollisionDispatch/btDefaultCollisionConfiguration.h>
+#include <BulletCollision/CollisionDispatch/btCollisionDispatcher.h>
+#include <BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolver.h>
+#include <BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h>
+#include <BulletCollision/BroadphaseCollision/btDbvtBroadphase.h>
+#include <BulletCollision/BroadphaseCollision/btAxisSweep3.h>
+#include <BulletCollision/CollisionShapes/btSphereShape.h>
+#include <BulletCollision/CollisionShapes/btBoxShape.h>
+#include "Examples/edt/Components.h"
+#include "Examples/edt/Systems.h"
+#include "Examples/edt/PlayerSystem.h"
 
 namespace CForge {
     class EDT : public ExampleSceneBase {
     public:
+        static const bool VISUALIZE_PATH = false;
+        static const bool BULLET_DEBUG_DRAW = false;
+
         EDT(void) {
 
         }//Constructor
@@ -55,6 +67,7 @@ namespace CForge {
 
             initSkybox();
             initFPSLabel();
+
             m_FPSLabel.color(1.0f, 1.0f, 1.0f, 1.0f);
 
             m_RootSGN.init(nullptr);
@@ -77,17 +90,43 @@ namespace CForge {
             m_Ground.boundingVolume(BV);
             M.clear();
 
+            SAssetIO::load("Assets/ExampleScenes/Duck/Duck.gltf", &M);
+            for (uint32_t i = 0; i < M.materialCount(); ++i)
+                CForgeUtility::defaultMaterial(M.getMaterial(i), CForgeUtility::PLASTIC_YELLOW);
+            M.computePerVertexNormals();
+            m_duck.init(&M);
+            M.clear();
+
             // initialize ground transformation and geometry scene graph node
             m_GroundTransformSGN.init(&m_RootSGN);
             m_GroundSGN.init(&m_GroundTransformSGN, &m_Ground);
-
+            debugDraw = new DebugDraw();
+            dynamicsWorld = PhysicsSystem::addPhysicsSystem(world);
+            dynamicsWorld->setDebugDrawer(debugDraw);
+            SteeringSystem::addSteeringSystem(world);
+            PathSystem::addPathSystem(world);
+            PlayerSystem::addPlayerSystem(world);
+            Systems::addSimpleSystems(world);
             // load level
             LevelLoader levelLoader;
-            levelLoader.loadLevel("Assets/Scene/scene.json", &m_RootSGN, &world);
+            levelLoader.loadLevel("Assets/Scene/end_mvp.json", &m_RootSGN, &world);
+
+            flecs::entity player = world.entity();
+            player.emplace<PlayerComponent>(&m_Cam, m_RenderWin.keyboard(), m_RenderWin.mouse());
+
+            btRigidBody::btRigidBodyConstructionInfo rbInfo(10, new btDefaultMotionState(),
+                                                            LevelLoader::createCapsuleCollider(0.5f,
+                                                                                               PlayerComponent::HEIGHT));
+            btRigidBody *body = new btRigidBody(rbInfo);
+            player.emplace<PhysicsComponent>(body);
+            player.add<PositionComponent>();
+            auto pos = player.get_mut<PositionComponent>();
+            pos->init();
+            pos->translation(Vector3f(15, 4, 0));
 
             // change sun settings to cover this large area
-            m_Sun.position(Vector3f(100.0f, 1000.0f, 500.0f));
-            m_Sun.initShadowCasting(2048 * 2, 2048 * 2, Vector2i(1000, 1000), 1.0f, 5000.0f);
+            m_Sun.position(Vector3f(100.0f, 100.0f, 100.0f));
+            m_Sun.initShadowCasting(2048*2, 2048*2, Vector2i(100, 100), 90.0f, 5000.0f);
 
             // create help text
             LineOfText *pKeybindings = new LineOfText();
@@ -143,10 +182,8 @@ namespace CForge {
         }
 
         void mainLoop(void) override {
+            glDisable(GL_CULL_FACE);
             m_RenderWin.update();
-
-            toggleCursor();
-            defaultCameraUpdate(&m_Cam, m_RenderWin.keyboard(), m_RenderWin.mouse(), 0.1f * 60.0f / m_FPS, 0.5f, 2.0f);
 
             m_SkyboxSG.update(60.0f / m_FPS);
             m_SG.update(60.0f / m_FPS);
@@ -196,12 +233,15 @@ namespace CForge {
                 dialog.setWindowStyle(m_RenderWin.width(), m_RenderWin.height());
                 hasFinished = dialog.showDialog("Assets/Dialogs/whatPlant.json");
                 if(hasFinished) gamestate = GAMEPLAY;
+            bool test = true;
+            ImVec2 size = {0, 0};
+            if (BULLET_DEBUG_DRAW) {
+                debugDraw->updateUniform(m_Cam.projectionMatrix(), m_Cam.cameraMatrix());
+                dynamicsWorld->debugDrawWorld();
             }
-
             m_RenderWin.swapBuffers();
-
             updateFPS();
-            world.progress(60.0f / m_FPS);
+            world.progress(1.0f / m_FPS);
             // change between flying and walking mode
             defaultKeyboardUpdate(m_RenderWin.keyboard());
 
@@ -210,18 +250,40 @@ namespace CForge {
     protected:
 
         void renderEntities(RenderDevice *pRDev) {
+            IRenderableActor *duckCopy = &m_duck;
             world.query<PositionComponent, GeometryComponent>()
                     .iter([pRDev](flecs::iter it, PositionComponent *p, GeometryComponent *geo) {
                         for (int i: it) {
+                            if(it.entity(i).has<PlantComponent>()){
+                                auto plant = it.entity(i).get<PlantComponent>();
+                                geo[i].actor->isPlant = true;
+                                geo[i].actor->waterLevel = plant->waterLevel / plant->maxWaterLevel;
+                            }
                             pRDev->requestRendering(geo[i].actor, p[i].m_Rotation, p[i].m_Translation, p[i].m_Scale);
                         }
                     });
+            if (VISUALIZE_PATH) {
+                world.query<PathComponent>()
+                        .iter([pRDev, duckCopy](flecs::iter it, PathComponent *p) {
+                            for (int i: it) {
+                                auto copy = p[i].path;
+                                while (!copy.empty()) {
+                                    auto pos = copy.front();
+                                    copy.pop();
+                                    pRDev->requestRendering(duckCopy, Quaternionf(), pos,
+                                                            Vector3f(0.003, 0.003, 0.003));
+                                }
+                            }
+                        });
+            }
         }
+
 
         flecs::world world;
         SGNTransformation m_RootSGN;
 
         StaticActor m_Ground;
+        StaticActor m_duck;
         SGNGeometry m_GroundSGN;
         SGNTransformation m_GroundTransformSGN;
 
@@ -233,6 +295,10 @@ namespace CForge {
         Dialog dialog;
         bool isClose;
         LineOfText text;
+        Dialoggraph dialog;
+        vector<int> conversationProgress;
+        DebugDraw *debugDraw;
+        std::shared_ptr<btDiscreteDynamicsWorld> dynamicsWorld;
     };//EDT
 
 }//name space
