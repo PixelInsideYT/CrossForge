@@ -17,13 +17,13 @@
 #include "crossforge/Graphics/Actors/StaticActor.h"
 #include "crossforge/AssetIO/SAssetIO.h"
 
-
 namespace CForge {
 
     class Systems {
     public:
 
-        static void addSimpleSystems(flecs::world &world, StaticActor *waterDrop) {
+        static void addSimpleSystems(flecs::world &world, StaticActor *waterDrop, bool* spawnPhysicsBodies,
+                                     btCollisionShape *particleShape) {
             world.system<AIComponent>("AISystem")
                     .iter([&world](flecs::iter it, AIComponent *ai) {
                         for (int i: it) {
@@ -54,9 +54,9 @@ namespace CForge {
                             }
                         }
                     });
-
             world.system<EmitterComponent, PositionComponent>("WaterEmitterSystem")
-                    .iter([&world, waterDrop](flecs::iter it, EmitterComponent *em, PositionComponent *pc) {
+                    .iter([&world, waterDrop, spawnPhysicsBodies, particleShape](flecs::iter it, EmitterComponent *em,
+                                                                                   PositionComponent *pc) {
                         for (int e: it) {
                             std::random_device rd;
                             std::mt19937 mt(rd());
@@ -66,6 +66,15 @@ namespace CForge {
                                 entity.add<PositionComponent>();
                                 entity.add<GeometryComponent>();
                                 entity.add<ParticleComponent>();
+
+                                if (*spawnPhysicsBodies) {
+                                    btRigidBody::btRigidBodyConstructionInfo rbInfo(0.1f, new btDefaultMotionState(),
+                                                                                    particleShape);
+                                    btRigidBody *body = new btRigidBody(rbInfo);
+                                    entity.emplace<PhysicsComponent>(body);
+
+                                     std::cout<<"place physics componment in particle"<<std::endl;
+                                }
                                 auto particle = entity.get_mut<ParticleComponent>();
                                 particle->lifeTime = 2.0;
                                 PositionComponent *entityPosition = entity.get_mut<PositionComponent>();

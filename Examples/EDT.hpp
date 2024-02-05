@@ -22,7 +22,6 @@
 #include <crossforge/MeshProcessing/PrimitiveShapeFactory.h>
 #include "ExampleSceneBase.hpp"
 #include "Examples/edt/PathSystem.h"
-#include "Examples/levelloading/LevelLoader.h"
 #include <flecs.h>
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
@@ -45,13 +44,14 @@
 #include "Examples/edt/Components.h"
 #include "Examples/edt/Systems.h"
 #include "Examples/edt/PlayerSystem.h"
+#include "Examples/levelloading/LevelLoader.h"
 
 namespace CForge {
     class EDT : public ExampleSceneBase {
     public:
-        static const bool VISUALIZE_PATH = false;
-        static const bool BULLET_DEBUG_DRAW = false;
-
+        bool visualizePath;
+        bool bulletDebugDraw;
+        bool* physicsParticles;
         EDT(void) {
 
         }//Constructor
@@ -61,6 +61,10 @@ namespace CForge {
         }//Destructor
 
         void init(void) override {
+            visualizePath = false;
+            bulletDebugDraw = false;
+            physicsParticles = new bool;
+            *physicsParticles = false;
             initWindowAndRenderDevice();
             initCameraAndLights();
 
@@ -110,7 +114,8 @@ namespace CForge {
             SteeringSystem::addSteeringSystem(world);
             pathSystem.addPathSystem(world);
             PlayerSystem::addPlayerSystem(world);
-            Systems::addSimpleSystems(world, &m_waterDrop);
+            auto particleShape = levelLoader.createCapsuleCollider(0.05f,0.05f);
+            Systems::addSimpleSystems(world, &m_waterDrop, physicsParticles, particleShape);
             // load level
             levelLoader.loadLevel("Assets/Scene/end_mvp.json", &m_RootSGN, &world);
 
@@ -119,7 +124,7 @@ namespace CForge {
 
             btRigidBody::btRigidBodyConstructionInfo rbInfo(10, new btDefaultMotionState(),
                                                             levelLoader.createCapsuleCollider(0.5f,
-                                                                                               PlayerComponent::HEIGHT));
+                                                                                              PlayerComponent::HEIGHT));
             btRigidBody *body = new btRigidBody(rbInfo);
             player.emplace<PhysicsComponent>(body);
             player.add<PositionComponent>();
@@ -132,7 +137,7 @@ namespace CForge {
             obst->obstacleRadius = 4.0;
             // change sun settings to cover this large area
             m_Sun.position(Vector3f(100.0f, 100.0f, 100.0f));
-            m_Sun.initShadowCasting(2048*2, 2048*2, Vector2i(100, 100), 90.0f, 5000.0f);
+            m_Sun.initShadowCasting(2048 * 2, 2048 * 2, Vector2i(100, 100), 90.0f, 5000.0f);
 
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();
@@ -187,12 +192,17 @@ namespace CForge {
             m_SkyboxSG.render(&m_RenderDev);
             if (m_FPSLabelActive) m_FPSLabel.render(&m_RenderDev);
 
-            ImGui_ImplOpenGL3_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
+            if (m_RenderWin.keyboard()->keyPressed(Keyboard::KEY_1, true)) {
+                bulletDebugDraw = !bulletDebugDraw;
+            }
+            if (m_RenderWin.keyboard()->keyPressed(Keyboard::KEY_2, true)) {
+                visualizePath = !visualizePath;
+            }
+            if (m_RenderWin.keyboard()->keyPressed(Keyboard::KEY_3, true)) {
+                *physicsParticles = !*physicsParticles;
+            }
 
-            bool test = true;
-            ImVec2 size = {0, 0};
-            if (BULLET_DEBUG_DRAW) {
+            if (bulletDebugDraw) {
                 debugDraw->updateUniform(m_Cam.projectionMatrix(), m_Cam.cameraMatrix());
                 dynamicsWorld->debugDrawWorld();
             }
@@ -211,7 +221,7 @@ namespace CForge {
             world.query<PositionComponent, GeometryComponent>()
                     .iter([pRDev](flecs::iter it, PositionComponent *p, GeometryComponent *geo) {
                         for (int i: it) {
-                            if(it.entity(i).has<PlantComponent>()){
+                            if (it.entity(i).has<PlantComponent>()) {
                                 auto plant = it.entity(i).get<PlantComponent>();
                                 geo[i].actor->isPlant = true;
                                 geo[i].actor->waterLevel = plant->waterLevel / plant->maxWaterLevel;
@@ -219,7 +229,7 @@ namespace CForge {
                             pRDev->requestRendering(geo[i].actor, p[i].m_Rotation, p[i].m_Translation, p[i].m_Scale);
                         }
                     });
-            if (VISUALIZE_PATH) {
+            if (visualizePath) {
                 world.query<PathComponent>()
                         .iter([pRDev, duckCopy](flecs::iter it, PathComponent *p) {
                             for (int i: it) {
@@ -255,7 +265,7 @@ namespace CForge {
         vector<int> conversationProgress;
         DebugDraw *debugDraw;
         LevelLoader levelLoader;
-        btDiscreteDynamicsWorld* dynamicsWorld;
+        btDiscreteDynamicsWorld *dynamicsWorld;
     };//EDT
 
 }//name space

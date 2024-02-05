@@ -257,8 +257,11 @@ namespace CForge {
                 float random = (float) rand() / (float) RAND_MAX;
                 random = random * (plant->maxWaterLevel);
                 plant->waterLevel = random;
+
+                float radius = name.find("monstera") != std::string::npos ? 1:0.5f;
+
                 btRigidBody::btRigidBodyConstructionInfo rbInfo(50, motionState,
-                                                                createCapsuleCollider(0.5f, 2.0f));
+                                                                createCapsuleCollider(radius, 2.0f));
                 btRigidBody *body = new btRigidBody(rbInfo);
                 entity.emplace<PhysicsComponent>(body);
             }
