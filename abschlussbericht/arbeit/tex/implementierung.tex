@@ -19,11 +19,11 @@ Da bei der Implementierung einige Komponenten und Systeme erzeugt werden, ist es
 
 \subsection{Sate Machines}
 
-Wir haben noch keine State Machines für den Roboter implementiert, weil der Roboter sich nur in den zwei Zuständen \"Pflanzen gießen\" und \"Mit Spieler reden\" befinden kann. Diese Funktionalität kann über ein einfaches if-else abgedeckt werden und deswegen sind State Machines noch nicht nötig.
+Wir haben noch keine State Machines für den Roboter implementiert, weil der Roboter sich nur in den zwei Zuständen „Pflanzen gießen“ und „Mit Spieler reden“ befinden kann. Diese Funktionalität kann über ein einfaches if-else abgedeckt werden und deswegen sind State Machines noch nicht nötig.
 
 \subsection{Behaviour Tree}
 Um den Behaviour Tree für den Handlungsablauf des Roboters effizient umzusetzen, wurde die Bibliothek BehaviorTree.CPP genutzt. Diese wurde ausgesucht, da sie vcpkg unterstützt, für C++ entwickelt wurde und alle nötigen Funktionalitäten bietet, ohne zu komplex zu sein. 
-Im Falle des Gießroboters gibt es fünf Schritte, die er ausführen muss, um eine Pflanze zu gießen. Zuerst muss eine Pflanze ausgewählt werden, die den geringsten Wasserstand hat. Im Anschluss wird der Weg von der aktuellen Position zu dieser gesucht. Daraufhin fährt der Roboter den Weg ab. Dort angekommen muss er sich noch so drehen, dass sich sein Gießarm über dem Blumentopf befindet, damit am Ende die Pflanze gegossen werden kann und sich ihr Wasserstand erhöht. Alle diese Schritte wurden in dem Behaviour Tree als Blattknoten implementiert. Darüber sitzt ein sogenannter Sequenzknoten, dieser merkt sich welches Blatt als letztes ausgeführt wurde und ob dieses beendet wurde. Wenn es noch nicht fertig ist, wird es im nächsten Schritt erneut aufgerufen. Dies geschieht so lang, bis das Blatt fertig ist. Der Sequenzknoten erhält als Rückmeldung „SUCCES“, oder, wenn das Blatt noch nicht fertig ist, „RUNNING“. Wenn ein Blatt fertig ist, wird das nächste ausgeführt. Wurde jedes Blatt einmal ausgeführt und hat jeweils „SUCCES“ zurückgegeben, so beginnt der Sequenzknoten erneut das erste Blatt aufzurufen.
+Im Falle des Gießroboters gibt es fünf Schritte, die er ausführen muss, um eine Pflanze zu gießen. Zuerst muss eine Pflanze ausgewählt werden, die den geringsten Wasserstand hat. Im Anschluss wird der Weg von der aktuellen Position zu dieser gesucht. Daraufhin fährt der Roboter den Weg ab. Dort angekommen muss er sich noch so drehen, dass sich sein Gießarm über dem Blumentopf befindet, damit am Ende die Pflanze gegossen werden kann und sich ihr Wasserstand erhöht. Alle diese Schritte wurden in dem Behaviour Tree als Blattknoten implementiert. Darüber sitzt ein sogenannter Sequenzknoten, dieser merkt sich welches Blatt als letztes ausgeführt wurde und ob dieses beendet wurde. Wenn es noch nicht fertig ist, wird es im nächsten Schritt erneut aufgerufen. Dies geschieht so lang, bis das Blatt fertig ist. Der Sequenzknoten erhält als Rückmeldung „SUCCESS“, oder, wenn das Blatt noch nicht fertig ist, „RUNNING“. Wenn ein Blatt fertig ist, wird das nächste ausgeführt. Wurde jedes Blatt einmal ausgeführt und hat jeweils „SUCCESS“ zurückgegeben, so beginnt der Sequenzknoten erneut das erste Blatt aufzurufen.
 Die Baumstruktur wird in einem XML-Dokument gespeichert. Die Funktionalität der einzelnen Knoten befindet sich in einer C++ Datei und die Knoten und Blätter werden in einer sogenannten Treefactory erstellt, welche ebenfalls in C++ geschrieben ist.
 \subsection{Steering Behaviour}
 Auch die Bewegungssteuerung wurde auf Basis des ECS implementiert. Dazu wurden ein Fahrsystem und Komponenten, wie Fahr-, Hindernis-, Pfad- und Positionskomponente, erstellt. Das Fahrsystem untersucht dabei, welcher Bewegungsmodus aktuell ausgewählt ist und passt darauf basierend das Bewegungsverhalten an. Es wird zwischen dem Pfadverfolgen und Drehen unterschieden. Ist Pfadverfolgen aktiviert, so folgt der Roboter einem Pfad, welcher sich in der Pfadkomponente befindet, die dem Entity Roboter zugeordnet wird. Der Pfad ist dabei eine Liste von Wegpunkten, die der Agent abfahren soll. Dazu wird das, wie im Konzeptteil beschriebene Suchverhalten genutzt. Zudem wird, während der Roboter die Punkte abfährt, darauf geachtet, dass er mit keinen Hindernissen kollidiert. Diese sind alle Objekte in der Szene, welche eine Hinderniskomponente haben. In dieser ist der Radius des Gegenstandes oder Spielers gespeichert. Damit das Fahrverhalten des Roboters sichtbar ist, muss die Position in der Positionskomponente nach jedem Durchlauf aktualisiert werden. Das Ausweichverhalten wurde, wie oben erwähnt, implementiert. Das bedeutet, es wird überprüft, ob das Objekt, welches am nächsten zu dem Roboter ist, sich vor dem Agenten befindet. Ist dies der Fall, so wird getestet, ob der Roboter nach dem nächsten Schleifendurchlauf mit diesem kollidiert, wenn ja wird der aktuelle Wegpunkt nach rechts oder links verschoben. Es wird dabei berücksichtigt, bei welcher Verschiebung die Abweichung zum Pfad am geringsten ist. Je nach dem wird der Pfad angepasst. Da der Punkt nun eine neue Position hat, weicht der Roboter dem Hindernis aus.
@@ -45,11 +45,11 @@ Um einen Pfad von einem Startpunkt zu einem Zielpunkt zu finden, sind drei Schri
 
 \section{Physiksystem}
 
-Die ECS-Bibliothek Flecs unterstützt Entity Event Listener, sogenannte Observer. Man kann eine Callbackfunktion definieren die gerufen wird, wenn eine Komponente eines Entities hinzugefügt, modifiziert oder entfernt wird. Das Physiksystem nutzt zwei Observer: ein Observer überwacht, wenn eine Physikkomponente zu einem Entity hinzugefügt wird und fügt den enthaltenen Rigidbody auch in die Physikwelt ein. Der zweite Observer wird gerufen, wenn ein Entity aus der Welt entfernt wird, welches eine Physikkomponente besitzt. In dem Fall wird auch der dazugehörige Rigidbody aus der Physikwelt entfernt.
+Die ECS-Bibliothek Flecs unterstützt Entity Event Listener, sogenannte Observer. Es kann eine Callbackfunktion definiert werden, die gerufen wird, wenn eine Komponente eines Entities hinzugefügt, modifiziert oder entfernt wird. Das Physiksystem nutzt zwei Observer: ein Observer überwacht, wenn eine Physikkomponente zu einem Entity hinzugefügt wird und fügt den enthaltenen Rigidbody auch in die Physikwelt ein. Der zweite Observer wird gerufen, wenn ein Entity aus der Welt entfernt wird, welches eine Physikkomponente besitzt. In dem Fall wird auch der dazugehörige Rigidbody aus der Physikwelt entfernt.
 
 Theoretisch benötigen wir nur die Kollisionserkennung und -auflösung von Bullet. Aber es war deutlich schwerer, diese beiden Funktionen getrennt von der Physiksimulation zu rufen, als die Physikwelt und die ECS-Welt zu synchronisieren. Deswegen funktioniert die Kollisionserkennung und -auflösung jetzt in drei Schritten. Zuerst werden alle Entities mit Physikkomponente und Transformationskomponente gesucht und die Geschwindigkeit und Position der Transformationskomponente auf den Rigidbody der Physikkomponente übertragen. Dann wird die Simulation der Physikwelt mit dem jetzigen Zeitschritt gerufen. Zum Schluss werden die Geschwindigkeit und Position des Rigidbodies wieder in die Transformationskomponente geschrieben.
 
-Die Plattformen, Zäune und Wendeltreppe sind statische Geometrie und zusätzlich noch konkav. Deswegen sind diese mit einem Deiecks-Collider repräsentiert. Dabei wird einfach das 3D-Modell der statischen Geometrie als Collider benutzt.
+Die Plattformen, Zäune und Wendeltreppe sind statische Geometrie und zusätzlich noch konkav. Deswegen sind diese mit einem Dreiecks-Collider repräsentiert. Dabei wird einfach das 3D-Modell der statischen Geometrie als Collider benutzt.
 
 Alle Entities haben Kapsel-Collider anstatt Zylinder-Collider, da diese an den Dreieckskanten der statischen Geometrie hängen geblieben sind.
 
@@ -85,39 +85,39 @@ Weitere Funktionalitäten der Dialogmap, wie Eventhandling sind ebenfalls noch n
 \section{Modelle und Szene}
 
 Wie im Konzept bereits erläutert, wurde ein beträchtlicher Teil der Anfangsphase für die Konzeptentwicklung aufgewendet. Darüber hinaus erforderte die Einarbeitung in Blender eine gewisse Zeit. Die Modellierung aller Objekte musste aufgrund verschiedener Herausforderungen mehrfach überarbeitet werden, darunter Unklarheiten im Design, zu viele Polygone aufgrund detaillierter Elemente oder inkorrekter Vorgehensweisen, usw.
+
 \begin{figure}[H]
-	\begin{subfigure}{0.5\textwidth}
+	\begin{subfigure}{0.4\textwidth}
 		\centering
 		\includegraphics[height=0.3\pageheight,keepaspectratio]{pics/6}
 		\caption{Schwebender Roboter}
 	\end{subfigure}
-	\begin{subfigure}{0.5\textwidth}
+	\begin{subfigure}{0.4\textwidth}
 		\centering
 		\includegraphics[height=0.3\pageheight,keepaspectratio]{pics/7}
 		\caption{Fahrender Roboter}
 	\end{subfigure}
-	\begin{subfigure}{0.5\textwidth}
+	\begin{subfigure}{0.4\textwidth}
 		\centering
 		\includegraphics[height=0.3\pageheight,keepaspectratio]{pics/8}
 		\caption{Blatt einer Monstera mit zu vielen Polygonen in Wireframedarstellung}
 	\end{subfigure}
-	\begin{subfigure}{0.5\textwidth}
+	\begin{subfigure}{0.4\textwidth}
 		\centering
 		\includegraphics[height=0.3\pageheight,keepaspectratio]{pics/9}
 		\caption{Pflanzenblatt mit zu vielen Polygonen in Wireframedarstellung}
 	\end{subfigure}
 	\caption{Erste Versuche für die Modelle}
 \end{figure}
-\par
+
 Die Modelle wurden mithilfe von Blender erstellt, während die zugehörigen Texturen eigenständig auf dem iPad mit ProCreate gezeichnet wurden.
-\par
 Der Roboter wurde primär aus simplen Zylindern modelliert und entsprechend angepasst. Bei der Gestaltung lag der Fokus darauf, dass er ein nicht allzu klassisches Aussehen erhält, da er für Kommunikationszwecke genutzt wird. Die Integration der Solarplatte auf seinem Kopf erfolgte mit der Absicht, dass er sich mittels Sonnenenergie aufladen kann. Der Arm wurde als Schlauch konzipiert, um damit die Pflanzen zu bewässern. Alle einzelnen Objekte wurden bis auf den Schlauch zum Abschluss zu einem einzigen Objekt vereint, während der Schlauch separat blieb, da er später animiert werden soll. In Bezug auf die Texturen wurden bis auf die Solarplatte alle direkt in Blender mithilfe von Geometry Nodes eingestellt. Dadurch erhielt der Körper ein metallisches Aussehen und die Räder einen gummiartigen Look. Die Solarplatte wurde in ProCreate handgezeichnet und anschließend im UV-Editor eingefügt und angepasst. Nach Rücksprache mit dem Team entstand dann unser aktueller Roboter, wie er im MVP zu sehen ist.
 \begin{figure}[h]
 	\centering
 	\includegraphics[height=0.3\pageheight,keepaspectratio]{pics/10}
 	\caption{Finales Modell für den Roboter}
+	\label{mvpSzene}
 \end{figure}
-\par
 Die beiden Pflanzen wurden größtenteils aus spontanen Ideen heraus gestaltet. Die Hauptüberlegung bestand darin, zwei verschiedene Pflanzen zu kreieren. Die Blumentöpfe für beide Pflanzen wurden aus simplen Zylindern modelliert. Ursprünglich wurde der Stiel der kleineren Pflanze mit verschiedenen Einstellungen der Geometry Nodes als komplexes Mesh erstellt. Diese Herangehensweise wurde jedoch verworfen und stattdessen vereinfacht. Die Blätter, die anfangs zu detailliert waren, wurden letztendlich auf zwei einfache 2D-Texturen reduziert. Sowohl die Texturen für die Blätter als auch für die Töpfe mit Erde wurden eigenständig in ProCreate erstellt. Zunächst wurde versucht, die Modelle direkt in ProCreate zu importieren und darauf zu zeichnen. Diese Methode sollte es ermöglichen, die Texturen einfach in Blender zu importieren. Leider funktionierte dieser Ansatz nicht wie erwartet, daher wurden die Texturen schließlich als 2D-Bilder gezeichnet und dann mittels UV-Mapping in Blender angepasst. Ähnlich wie beim Roboter wurden die Pflanzen nach Absprache mit dem Team genehmigt und in das MVP integriert.
 \begin{figure}[H]
 	\begin{subfigure}{0.5\textwidth}
@@ -132,14 +132,12 @@ Die beiden Pflanzen wurden größtenteils aus spontanen Ideen heraus gestaltet. 
 	\end{subfigure}
 	\caption{Finale Modelle der Pflanzen}
 \end{figure}
-\par
 Die größte Herausforderung lag in der Gestaltung und Implementierung der Plattformen. Wie bereits im Konzept beschrieben, wurden zunächst verschiedene Ansätze dafür entwickelt. Letztendlich wurden beide Plattformen frei nach Gefühl gestaltet, zusammen mit einer etwas unkonventionellen Verbindung zwischen ihnen. Um sicherzustellen, dass die Roboter im Notfall zwischen den Plattformen navigieren können, wurde eine Rampenstruktur um die Säule herum entwickelt. Zusätzlich erhielten sowohl die Rampe als auch die Plattformen Zäune und Geländer, um ihre Sicherheit zu erhöhen. Auch hier wurden alle Texturen eigenhändig mit ProCreate erstellt. Das Modell wurde ebenfalls mit dem Team abgestimmt, bevor es finalisiert wurde.
 \begin{figure}[H]
 	\centering
 	\includegraphics[height=0.3\pageheight,keepaspectratio]{pics/13}
 	\caption{Finales Modell der Szene}
 \end{figure}
-\par
 Zum Schluss wurde leider bemerkt, dass die Rampe breiter sein sollte, um Platz für beide Roboter zu bieten, wenn sie gleichzeitig die Ebenen wechseln und sich auf der Rampe treffen. Derzeit gibt es dort keinen Raum zum Ausweichen, was dazu führt, dass einer der Roboter abdriftet.
 Nachdem alle Modelle fertiggestellt waren, wurden sie in der Szene zusammengesetzt und weitgehend angepasst. Das gesamte Setup wurde dann mithilfe eines Dropper-Addons in das Projekt integriert. Zunächst gab es einige Probleme und Unklarheiten, die jedoch unter der Leitung des Teamleiters erfolgreich gelöst wurden. Um die Zusammenarbeit zwischen den Modellen und anderen programmatischen Aufgaben wie dem Navigationssystem zu verbessern, wurden die Modelle in "linked" (Pflanzen und Roboter) und "static" (Plattformen \& Co.) unterteilt.
 Nachdem die Szene weitgehend fertiggestellt und in das Projekt integriert war, mussten nur noch einige allgemeine Probleme hinsichtlich Texturen und Ordnerstrukturen gelöst werden.
@@ -161,5 +159,4 @@ Die nächste Aufgabe bestand darin, die MVP-Szene weiter auszubauen und zu versc
 	\end{subfigure}
 	\caption{Modelle für erweiterte Szene}
 \end{figure}
-\par
 Der Ausbau der Szene wurde jedoch vorzeitig beendet, um die verbleibende Zeit dem Bericht zu widmen.

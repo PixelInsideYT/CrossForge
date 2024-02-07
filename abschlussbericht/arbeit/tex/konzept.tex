@@ -113,7 +113,7 @@ Das letzte Lenkverhalten ist das auf der Stelle Drehen. Dieses wird genutzt, wen
 
 \section{Navigationssystem}
 
-In der Mitte der MVP-Szene befindet sich die Wendeltreppe, weswegen die Roboter nicht immer den direkten Weg zur Pflanze fahren können, weil sie dieses Hindernis beachten müssen. Das Navigationssystem übernimmt die Aufgabe, einen Pfad von einem Startpunkt zum Zielpunkt zu finden. Um Zeit zu sparen und uns auf die Hauptaufgabe konzentrieren zu können, haben wir uns entschieden, die Bibliothek Recast und Detour einzusetzen. Recast berechnet das Navigationsmesh aus der statischen Geometrie, und Detour findet zur Laufzeit einen Pfad auf diesem Navigationsmesh. Da das Navigationsmesh nicht dynamisch angepasst werden muss, reicht es aus, wenn man es einmal vor der Kompilierung berechnet, speichert und dann in CrossForge lädt. Die Bibliothek stellt hierfür ein Beispielprogramm bereit, was wir nutzen.
+In der Mitte der MVP-Szene (siehe Abbieldung \ref{konzeptMVP}) befindet sich die Wendeltreppe, weswegen die Roboter nicht immer den direkten Weg zur Pflanze fahren können, weil sie dieses Hindernis beachten müssen. Das Navigationssystem übernimmt die Aufgabe, einen Pfad von einem Startpunkt zum Zielpunkt zu finden. Um Zeit zu sparen und uns auf die Hauptaufgabe konzentrieren zu können, haben wir uns entschieden, die Bibliothek Recast und Detour einzusetzen. Recast berechnet das Navigationsmesh aus der statischen Geometrie, und Detour findet zur Laufzeit einen Pfad auf diesem Navigationsmesh. Da das Navigationsmesh nicht dynamisch angepasst werden muss, reicht es aus, wenn man es einmal vor der Kompilierung berechnet, speichert und dann in CrossForge lädt. Die Bibliothek stellt hierfür ein Beispielprogramm bereit, was wir nutzen.
 
 \section{Physiksystem}
 
@@ -156,29 +156,29 @@ Als Datenstruktur für den Dialog nutzen wir eine Baumstruktur. Dabei beinhaltet
 \subsection{Dialogmap}
 
 Um den Dialog zum Erfragen eines Pflanzennamens umsetzen zu können, benötigt man im Dialog in der Json-Datei einen Platzhalter für den Name der Pflanze. Dieser Platzhalter wird dann durch den entsprechenden Name ersetzt. Dafür wollen wir eine Map nutzen, die den Platzhalter als Key entgegen nimmt und einen Funktionspointer zurückgibt. Mithilfe der dadurch aufgerufenen Funktion wird dann der Name der Pflanze in Abhängigkeit von der Position des Roboters und der Position des Spielers ermittelt, sodass die Map letztendlich indirekt den Pflanzennamen zurückgibt.  
-\par
+
 Die Nutzung einer Map ermöglicht es schnell und einfach neue Platzhalter/Keys hinzuzufügen, durch die auch andere Ersetzungen mithilfe entsprechender Funktionen möglich sind. Die genutzten Funktionen können aber auch andere Funktionalitäten erfüllen als nur einfache Textersetzungen; eine Funktion kann auch beispielsweise ein Event auslösen. Ein solches Event könnte zum Beispiel sein, dass man den Roboter anweist dem Spieler zu folgen oder aus dem Weg zu gehen.
 
 \section{Modelle und Szene}
 
 Die Szene und die zugehörigen Modelle sind von wesentlicher Bedeutung, um alle anderen Funktionen überhaupt darstellen zu können. Natürlich könnte man dafür auch jedes beliebige Modell verwenden, sogar einen simplen Würfel. Dennoch hatten wir ein klares Bild davon, was wir darstellen möchten. Wie bereits im Abschnitt Motivation erläutert, besteht unser MVP aus zwei Plattformen, jeweils einem Roboter und mehreren Pflanzen.
-\par
+
 Der erste und entscheidendste Schritt war, zu überlegen, wie unsere Roboter aussehen sollten, da sie die Hauptakteure in unserem Projekt sind und direkt mit dem Spieler interagieren. Ursprünglich war geplant, den Robotern ein eher menschenähnliches Design zu verleihen. Allerdings entschieden wir uns zunächst für eine simplere Gestaltung. Daher habe ich mich für ein eher "simples und knuffiges" Design entschieden und verschiedene Konzepte skizziert. Zusätzlich habe ich mir Gedanken über potenzielle Funktionen gemacht und diese als Randnotizen zum Design festgehalten.
 \begin{figure}[h]
 	\centering
 	\includegraphics[height=0.3\pageheight,keepaspectratio]{pics/1} 
 	\caption{Konzeptskizze für den Roboter}
 \end{figure}
-\par
+
 Eine weitere Überlegung war, den Roboter schweben zu lassen anstatt ihn zu fahren, um zusätzliche Programmierungsaufwände zu vermeiden. Jedoch wurde diese Idee zunächst als zu futuristisch angesehen und daher vorerst abgelehnt. Bei der abschließenden Skizzierung habe ich das Radsystem erneut überdacht und im Nachhinein noch einige Änderungen vorgenommen.
 \begin{figure}[H]
 	\centering
 	\includegraphics[height=0.2\pageheight,keepaspectratio]{pics/2} 
 	\caption{Finaler Entwurf für den Gärtnerroboter}
 \end{figure}
-\par
+
 Die nächsten Überlegungen galten den Pflanzen. Dabei habe ich eher spontan gearbeitet, ohne vorherige Skizzen. Es war mein Ziel, eine einfache und eine eher exotische Pflanze zu gestalten, um etwas Variation zu erreichen.
-\par
+
 Die Gestaltung der Plattformen und der Szene im Allgemeinen erforderte ähnlich viel Aufwand wie bei den Robotern im Konzept. Auch hier habe ich zahlreiche Ideen skizziert und im Anschluss diskutiert. Anfangs habe ich weitreichend gedacht und komplexere Szenen entworfen.
 \begin{figure}[H]
 	\begin{subfigure}{0.5\textwidth}
@@ -193,10 +193,11 @@ Die Gestaltung der Plattformen und der Szene im Allgemeinen erforderte ähnlich 
 	\end{subfigure}	
 	\caption{Konzeptskizzen für die Szene}
 \end{figure}
-\par
+\newpage
 Speziell auf das MVP ausgerichtet, habe ich die Skizzen vereinfacht und eine gänzlich neue Form in Betracht gezogen, die nach einigen Anpassungen schließlich die finale Gestalt annahm. Im späteren Verlauf war es natürlich auch erforderlich, Texturen für die Modelle zu erstellen. Auf diesen Aspekt werde ich im Implementierungsteil noch einmal eingehen.
 \begin{figure}[h]
 	\centering
 	\includegraphics[height=0.3\pageheight,keepaspectratio]{pics/5} 
 	\caption{Finaler Entwurf die Szene für das MVP}
+	\label{konzeptMVP}
 \end{figure}

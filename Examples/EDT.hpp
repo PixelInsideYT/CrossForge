@@ -171,6 +171,7 @@ namespace CForge {
         }//clear
 
         void mainLoop(void) override {
+            glDisable(GL_CULL_FACE);
             m_RenderWin.update();
 
             m_SkyboxSG.update(60.0f / m_FPS);
